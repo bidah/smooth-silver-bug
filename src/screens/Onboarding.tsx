@@ -1,14 +1,5 @@
-import { useRef, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { useRef, useState, type ReactNode } from 'react';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -17,37 +8,35 @@ import Animated, {
   useSharedValue,
   type SharedValue,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { SFSymbol } from 'expo-symbols';
 import { useStore, useTheme } from '../store';
-import { accents, alpha, radius, space, type, type AccentKey } from '../design/theme';
-import { AccentPicker, Icon, PrimaryButton } from '../design/components';
+import { radius, space, type } from '../design/theme';
+import { Card, Checkbox, GlassButton, Icon, PrimaryButton } from '../design/components';
 
-const slides: { icon: SFSymbol; title: string; body: string; badges: SFSymbol[] }[] = [
+const slides = [
   {
-    icon: 'checkmark.circle.fill',
-    title: 'Welcome to\nClarity',
-    body: 'A calm, focused place for everything you need to get done.',
-    badges: ['sparkles', 'star.fill'],
+    kicker: 'Capture',
+    title: 'Everything\nin one calm list.',
+    body: 'Write it down the moment it comes to mind. Clarity keeps the rest out of the way.',
+    Visual: MockList,
   },
   {
-    icon: 'calendar',
-    title: 'Plan your day\nin seconds',
-    body: 'Add due dates, priorities and lists with a couple of taps. Today shows only what matters now.',
-    badges: ['flag.fill', 'clock.fill'],
+    kicker: 'Plan',
+    title: 'Plan your day\nin two taps.',
+    body: 'Set a due date, a priority and a list. Today shows only what needs you now.',
+    Visual: MockPlan,
   },
   {
-    icon: 'hand.tap.fill',
-    title: 'Made to feel\ngreat',
-    body: 'Tap to complete, swipe to delete. Gentle haptics and progress tracking keep you in flow.',
-    badges: ['bolt.fill', 'chart.pie.fill'],
+    kicker: 'Progress',
+    title: 'See the day\ncome together.',
+    body: 'Tap to complete, swipe to delete. Quiet haptics and a simple tally keep you moving.',
+    Visual: MockProgress,
   },
 ];
 
 export function Onboarding() {
-  const { c, accent, accentDeep } = useTheme();
-  const { settings, updateSettings, completeOnboarding, haptic } = useStore();
+  const { c } = useTheme();
+  const { settings, completeOnboarding, haptic } = useStore();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
@@ -67,33 +56,26 @@ export function Onboarding() {
   };
 
   const next = () => {
-    haptic('light');
     if (last) {
       haptic('success');
-      completeOnboarding(name, settings.accent);
-    } else goTo(page + 1);
+      completeOnboarding(name);
+    } else {
+      haptic('light');
+      goTo(page + 1);
+    }
   };
 
   return (
     <View style={[styles.root, { backgroundColor: c.bg }]}>
-      {/* Soft accent glow behind everything */}
-      <LinearGradient
-        colors={[alpha(accent, 0.22), alpha(accent, 0)]}
-        style={[StyleSheet.absoluteFill, { height: 520 }]}
-      />
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <View style={[styles.topBar, { paddingTop: insets.top + space.sm }]}>
-          <View style={styles.brand}>
-            <View style={[styles.brandMark, { backgroundColor: accent }]}>
-              <Icon name="checkmark" size={11} color="#fff" weight="black" />
-            </View>
-            <Text style={[type.headline, { color: c.text }]}>Clarity</Text>
+          <Wordmark />
+          <View style={styles.topRight}>
+            <Text style={[type.label, { color: c.textSecondary }]}>
+              {String(page + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
+            </Text>
+            {!last && <GlassButton label="Skip" onPress={() => goTo(total - 1)} />}
           </View>
-          {!last && (
-            <Pressable hitSlop={12} onPress={() => goTo(total - 1)}>
-              <Text style={[type.callout, { color: c.textSecondary }]}>Skip</Text>
-            </Pressable>
-          )}
         </View>
 
         <Animated.ScrollView
@@ -107,29 +89,25 @@ export function Onboarding() {
           scrollEventThrottle={16}
           onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / width))}
         >
-          {slides.map((s, i) => (
-            <View key={i} style={[styles.page, { width }]}>
-              <Hero index={i} x={x} width={width} icon={s.icon} badges={s.badges} accent={accent} deep={accentDeep} />
-              <SlideText index={i} x={x} width={width}>
-                <Text style={[type.hero, styles.center, { color: c.text }]}>{s.title}</Text>
-                <Text style={[type.body, styles.center, { color: c.textSecondary, marginTop: space.md, lineHeight: 24 }]}>
-                  {s.body}
-                </Text>
-              </SlideText>
+          {slides.map(({ kicker, title, body, Visual }, i) => (
+            <View key={kicker} style={[styles.page, { width }]}>
+              <Parallax index={i} x={x} width={width} distance={60} style={styles.visual}>
+                <Visual />
+              </Parallax>
+              <Parallax index={i} x={x} width={width} distance={20} fade>
+                <Text style={[type.labelCaps, { color: c.accent }]}>{kicker}</Text>
+                <Text style={[type.display, { color: c.text, marginTop: space.sm }]}>{title}</Text>
+                <Text style={[type.body, { color: c.textSecondary, marginTop: space.md, maxWidth: 340 }]}>{body}</Text>
+              </Parallax>
             </View>
           ))}
 
-          {/* Personalize */}
           <View style={[styles.page, { width, justifyContent: 'center' }]}>
-            <SlideText index={slides.length} x={x} width={width}>
-              <LinearGradient colors={[accent, accentDeep]} style={styles.smallHero}>
-                <Icon name="person.crop.circle.fill" size={40} color="#fff" />
-              </LinearGradient>
-              <Text style={[type.largeTitle, styles.center, { color: c.text, marginTop: space.xl }]}>
-                Make it yours
-              </Text>
-              <Text style={[type.body, styles.center, { color: c.textSecondary, marginTop: space.sm }]}>
-                What should we call you?
+            <Parallax index={slides.length} x={x} width={width} distance={20} fade>
+              <Text style={[type.labelCaps, { color: c.accent }]}>One last thing</Text>
+              <Text style={[type.display, { color: c.text, marginTop: space.sm }]}>What should{'\n'}we call you?</Text>
+              <Text style={[type.body, { color: c.textSecondary, marginTop: space.md }]}>
+                Used for your daily greeting. Stays on this device.
               </Text>
               <TextInput
                 value={name}
@@ -137,123 +115,151 @@ export function Onboarding() {
                 placeholder="Your name"
                 placeholderTextColor={c.textTertiary}
                 returnKeyType="done"
+                onSubmitEditing={next}
                 autoCorrect={false}
                 maxLength={24}
-                selectionColor={accent}
-                style={[styles.input, type.title, { color: c.text, backgroundColor: c.surface }]}
+                selectionColor={c.accent}
+                style={[styles.input, type.h2, { color: c.text, backgroundColor: c.surface, borderColor: c.border }]}
               />
-              <Text style={[type.overline, styles.center, { color: c.textSecondary, marginTop: space.xxl, marginBottom: space.md }]}>
-                Pick your color
-              </Text>
-              <AccentPicker value={settings.accent} onChange={(k: AccentKey) => updateSettings({ accent: k })} />
-            </SlideText>
+            </Parallax>
           </View>
         </Animated.ScrollView>
 
         <View style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>
-          <View style={styles.dots}>
+          <View style={styles.progress}>
             {Array.from({ length: total }).map((_, i) => (
-              <Dot key={i} index={i} x={x} width={width} color={accent} track={c.textTertiary} />
+              <Segment key={i} index={i} x={x} width={width} />
             ))}
           </View>
-          <PrimaryButton label={last ? (name.trim() ? `Let's go, ${name.trim()}` : 'Get Started') : 'Continue'} onPress={next} />
+          <PrimaryButton label={last ? 'Start using Clarity' : 'Continue'} onPress={next} />
         </View>
       </KeyboardAvoidingView>
     </View>
   );
 }
 
-function Hero({
-  index,
-  x,
-  width,
-  icon,
-  badges,
-  accent,
-  deep,
-}: {
-  index: number;
-  x: SharedValue<number>;
-  width: number;
-  icon: SFSymbol;
-  badges: SFSymbol[];
-  accent: string;
-  deep: string;
-}) {
+export function Wordmark() {
   const { c } = useTheme();
-  const style = useAnimatedStyle(() => {
-    const p = (x.value - index * width) / width;
-    return {
-      opacity: interpolate(p, [-1, 0, 1], [0, 1, 0], Extrapolation.CLAMP),
-      transform: [
-        { scale: interpolate(p, [-1, 0, 1], [0.6, 1, 0.6], Extrapolation.CLAMP) },
-        { rotate: `${interpolate(p, [-1, 0, 1], [-18, 0, 18], Extrapolation.CLAMP)}deg` },
-      ],
-    };
-  });
-  const float = useAnimatedStyle(() => {
-    const p = (x.value - index * width) / width;
-    return { transform: [{ translateX: interpolate(p, [-1, 0, 1], [80, 0, -80], Extrapolation.CLAMP) }] };
-  });
   return (
-    <View style={styles.heroWrap}>
-      <View style={[styles.ring, { width: 260, height: 260, borderColor: alpha(accent, 0.12) }]} />
-      <View style={[styles.ring, { width: 200, height: 200, borderColor: alpha(accent, 0.2) }]} />
-      <Animated.View style={style}>
-        <LinearGradient colors={[accent, deep]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, { shadowColor: accent }]}>
-          <Icon name={icon} size={64} color="#fff" />
-        </LinearGradient>
-      </Animated.View>
-      <Animated.View style={[styles.badge, { top: 40, right: 60, backgroundColor: c.surface }, float]}>
-        <Icon name={badges[0]} size={20} color={accent} />
-      </Animated.View>
-      <Animated.View style={[styles.badge, { bottom: 50, left: 56, backgroundColor: c.surface }, float]}>
-        <Icon name={badges[1]} size={20} color={accents.orange.base} />
-      </Animated.View>
+    <View style={styles.brand}>
+      <View style={[styles.brandMark, { backgroundColor: c.ink }]}>
+        <Icon name="checkmark" size={10} color={c.onInk} weight="bold" />
+      </View>
+      <Text style={[type.title, { color: c.text, fontFamily: 'Geist_600SemiBold' }]}>Clarity</Text>
     </View>
   );
 }
 
-function SlideText({
+function Parallax({
   index,
   x,
   width,
+  distance,
+  fade,
+  style,
   children,
 }: {
   index: number;
   x: SharedValue<number>;
   width: number;
-  children: React.ReactNode;
+  distance: number;
+  fade?: boolean;
+  style?: object;
+  children: ReactNode;
 }) {
-  const style = useAnimatedStyle(() => {
+  const anim = useAnimatedStyle(() => {
     const p = (x.value - index * width) / width;
     return {
-      opacity: interpolate(p, [-0.6, 0, 0.6], [0, 1, 0], Extrapolation.CLAMP),
-      transform: [{ translateY: interpolate(p, [-1, 0, 1], [30, 0, 30], Extrapolation.CLAMP) }],
+      opacity: fade ? interpolate(p, [-0.7, 0, 0.7], [0, 1, 0], Extrapolation.CLAMP) : 1,
+      transform: [{ translateX: interpolate(p, [-1, 0, 1], [-distance, 0, distance], Extrapolation.CLAMP) }],
     };
   });
-  return <Animated.View style={[{ paddingHorizontal: space.xxl, alignItems: 'stretch' }, style]}>{children}</Animated.View>;
+  return <Animated.View style={[style, anim]}>{children}</Animated.View>;
 }
 
-function Dot({
-  index,
-  x,
-  width,
-  color,
-  track,
-}: {
-  index: number;
-  x: SharedValue<number>;
-  width: number;
-  color: string;
-  track: string;
-}) {
-  const style = useAnimatedStyle(() => {
-    const p = Math.abs(x.value / width - index);
-    const t = Math.max(0, 1 - p);
-    return { width: 8 + 18 * t, opacity: 0.35 + 0.65 * t, backgroundColor: t > 0.5 ? color : track };
-  });
-  return <Animated.View style={[styles.dot, style]} />;
+function Segment({ index, x, width }: { index: number; x: SharedValue<number>; width: number }) {
+  const { c } = useTheme();
+  const fill = useAnimatedStyle(() => ({
+    width: `${interpolate(x.value / width, [index - 1, index], [0, 100], Extrapolation.CLAMP)}%`,
+  }));
+  return (
+    <View style={[styles.segment, { backgroundColor: c.border }]}>
+      <Animated.View style={[styles.segmentFill, { backgroundColor: c.ink }, fill]} />
+    </View>
+  );
+}
+
+/* ───────────── Product vignettes ───────────── */
+
+function MockRow({ title, meta, done, last }: { title: string; meta: string; done?: boolean; last?: boolean }) {
+  const { c } = useTheme();
+  return (
+    <View style={[styles.mockRow, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: c.border }]}>
+      <Checkbox checked={!!done} onToggle={() => {}} />
+      <View style={{ flex: 1 }}>
+        <Text
+          style={[type.body, { color: done ? c.textTertiary : c.text }, done && { textDecorationLine: 'line-through' }]}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
+        <Text style={[type.label, { color: c.textTertiary }]}>{meta}</Text>
+      </View>
+    </View>
+  );
+}
+
+function MockList() {
+  return (
+    <Card padded={false}>
+      <MockRow title="Book dentist appointment" meta="PERSONAL · TODAY" done />
+      <MockRow title="Draft Q4 roadmap" meta="WORK · TODAY · P1" />
+      <MockRow title="Pick up groceries" meta="SHOPPING · TOMORROW" last />
+    </Card>
+  );
+}
+
+function MockPlan() {
+  const { c } = useTheme();
+  const pill = (label: string, on?: boolean) => (
+    <View key={label} style={[styles.mockChip, { backgroundColor: on ? c.ink : c.surface, borderColor: on ? c.ink : c.border }]}>
+      <Text style={[type.small, { color: on ? c.onInk : c.text, fontFamily: 'Geist_500Medium' }]}>{label}</Text>
+    </View>
+  );
+  return (
+    <Card>
+      <Text style={[type.title, { color: c.text }]}>Draft Q4 roadmap</Text>
+      <Text style={[type.labelCaps, { color: c.textSecondary, marginTop: space.md, marginBottom: space.sm }]}>Due</Text>
+      <View style={styles.mockChips}>{['Today', 'Tomorrow', 'Next week'].map((l, i) => pill(l, i === 0))}</View>
+      <Text style={[type.labelCaps, { color: c.textSecondary, marginTop: space.md, marginBottom: space.sm }]}>Priority</Text>
+      <View style={[styles.mockSeg, { backgroundColor: c.surfaceAlt }]}>
+        {['None', 'Low', 'Med', 'High'].map((l) => (
+          <View key={l} style={[styles.mockSegItem, l === 'High' && { backgroundColor: c.surface }]}>
+            <Text style={[type.small, { color: c.text, fontFamily: l === 'High' ? 'Geist_600SemiBold' : 'Geist_400Regular' }]}>{l}</Text>
+          </View>
+        ))}
+      </View>
+    </Card>
+  );
+}
+
+function MockProgress() {
+  const { c } = useTheme();
+  return (
+    <Card>
+      <Text style={[type.labelCaps, { color: c.textSecondary }]}>Today</Text>
+      <View style={styles.mockTally}>
+        <Text style={[type.display, { color: c.text, fontSize: 56, lineHeight: 60 }]}>4</Text>
+        <Text style={[type.h2, { color: c.textTertiary, marginBottom: 8 }]}>/ 5 done</Text>
+      </View>
+      <View style={styles.mockBar}>
+        {[1, 1, 1, 1, 0].map((on, i) => (
+          <View key={i} style={[styles.mockBarSeg, { backgroundColor: on ? c.ink : c.border }]} />
+        ))}
+      </View>
+      <Text style={[type.label, { color: c.textSecondary, marginTop: space.md }]}>1 LEFT · 2 UPCOMING</Text>
+    </Card>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -262,53 +268,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: space.xl,
+    paddingHorizontal: space.lg,
     paddingBottom: space.sm,
+    minHeight: 56,
   },
+  topRight: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  brandMark: { width: 22, height: 22, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
-  page: { flex: 1 },
-  heroWrap: { height: 340, alignItems: 'center', justifyContent: 'center' },
-  ring: { position: 'absolute', borderRadius: 999, borderWidth: 1.5 },
-  hero: {
-    width: 136,
-    height: 136,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowOpacity: 0.45,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 14 },
-  },
-  badge: {
-    position: 'absolute',
-    width: 46,
-    height: 46,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-  },
-  smallHero: {
-    width: 84,
-    height: 84,
-    borderRadius: 26,
-    alignSelf: 'center',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  center: { textAlign: 'center' },
+  brandMark: { width: 20, height: 20, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
+  page: { flex: 1, paddingHorizontal: space.lg, justifyContent: 'flex-end', paddingBottom: space.lg },
+  visual: { flex: 1, justifyContent: 'center' },
   input: {
-    marginTop: space.xl,
+    marginTop: space.lg,
     height: 60,
-    borderRadius: radius.lg,
-    paddingHorizontal: space.xl,
-    textAlign: 'center',
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: space.md,
   },
-  footer: { paddingHorizontal: space.xl, gap: space.xl },
-  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6 },
-  dot: { height: 8, borderRadius: 4 },
+  footer: { paddingHorizontal: space.lg, gap: space.md },
+  progress: { flexDirection: 'row', gap: 6 },
+  segment: { flex: 1, height: 2, borderRadius: 1, overflow: 'hidden' },
+  segmentFill: { height: 2 },
+  mockRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.md, paddingVertical: 14 },
+  mockChips: { flexDirection: 'row', gap: space.sm },
+  mockChip: { paddingHorizontal: 12, height: 32, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center' },
+  mockSeg: { flexDirection: 'row', borderRadius: radius.md, padding: 3 },
+  mockSegItem: { flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: 8 },
+  mockTally: { flexDirection: 'row', alignItems: 'flex-end', gap: space.sm, marginTop: space.sm },
+  mockBar: { flexDirection: 'row', gap: 4, marginTop: space.md },
+  mockBarSeg: { flex: 1, height: 6, borderRadius: 3 },
 });

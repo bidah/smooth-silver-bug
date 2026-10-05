@@ -3,7 +3,7 @@ import { useColorScheme } from 'react-native';
 import { createMMKV } from 'react-native-mmkv';
 import * as Haptics from 'expo-haptics';
 import type { SFSymbol } from 'expo-symbols';
-import { accents, palettes, type AccentKey, type Palette } from './design/theme';
+import { palettes, type Palette } from './design/theme';
 import { addDays, startOfDay } from './lib/dates';
 
 export type Priority = 0 | 1 | 2 | 3;
@@ -25,7 +25,6 @@ export type TaskList = { id: string; name: string; color: string; icon: SFSymbol
 export type Settings = {
   onboarded: boolean;
   name: string;
-  accent: AccentKey;
   appearance: 'system' | 'light' | 'dark';
   haptics: boolean;
   showCompleted: boolean;
@@ -46,7 +45,6 @@ const defaultLists: TaskList[] = [
 const defaultSettings: Settings = {
   onboarded: false,
   name: '',
-  accent: 'indigo',
   appearance: 'system',
   haptics: true,
   showCompleted: true,
@@ -101,7 +99,7 @@ type Store = State & {
   deleteTask: (id: string) => void;
   clearCompleted: () => void;
   updateSettings: (patch: Partial<Settings>) => void;
-  completeOnboarding: (name: string, accent: AccentKey) => void;
+  completeOnboarding: (name: string) => void;
   resetAll: () => void;
   haptic: (kind?: 'light' | 'medium' | 'success' | 'warning' | 'select') => void;
 };
@@ -150,11 +148,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       clearCompleted: () => setState((s) => ({ ...s, tasks: s.tasks.filter((t) => !t.done) })),
       updateSettings: (patch: Partial<Settings>) =>
         setState((s) => ({ ...s, settings: { ...s.settings, ...patch } })),
-      completeOnboarding: (name: string, accent: AccentKey) =>
+      completeOnboarding: (name: string) =>
         setState((s) => ({
           ...s,
           tasks: s.tasks.length ? s.tasks : sampleTasks(),
-          settings: { ...s.settings, name: name.trim(), accent, onboarded: true },
+          settings: { ...s.settings, name: name.trim(), onboarded: true },
         })),
       resetAll: () => setState({ tasks: [], lists: defaultLists, settings: defaultSettings }),
     }),
@@ -171,12 +169,11 @@ export function useStore() {
   return s;
 }
 
-export type Theme = { c: Palette; dark: boolean; accent: string; accentDeep: string };
+export type Theme = { c: Palette; dark: boolean };
 
 export function useTheme(): Theme {
   const { settings } = useStore();
   const system = useColorScheme();
   const dark = settings.appearance === 'system' ? system === 'dark' : settings.appearance === 'dark';
-  const a = accents[settings.accent] ?? accents.indigo;
-  return { c: dark ? palettes.dark : palettes.light, dark, accent: a.base, accentDeep: a.deep };
+  return { c: dark ? palettes.dark : palettes.light, dark };
 }

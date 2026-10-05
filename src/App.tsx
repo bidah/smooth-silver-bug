@@ -1,12 +1,43 @@
 import { StatusBar } from 'expo-status-bar';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useFonts, Geist_400Regular, Geist_500Medium, Geist_600SemiBold } from '@expo-google-fonts/geist';
+import { GeistMono_400Regular, GeistMono_500Medium } from '@expo-google-fonts/geist-mono';
+import { StoreProvider, useStore, useTheme } from './store';
+import { Onboarding } from './screens/Onboarding';
+import { Home } from './screens/Home';
+
+function Root() {
+  const { settings } = useStore();
+  const { c, dark } = useTheme();
+  // Render immediately; Geist swaps in once loaded (never block mount on fonts).
+  useFonts({
+    Geist_400Regular,
+    Geist_500Medium,
+    Geist_600SemiBold,
+    GeistMono_400Regular,
+    GeistMono_500Medium,
+  });
+  return (
+    <View style={{ flex: 1, backgroundColor: c.bg }}>
+      <Animated.View key={settings.onboarded ? 'home' : 'onboarding'} entering={FadeIn.duration(350)} style={{ flex: 1 }}>
+        {settings.onboarded ? <Home /> : <Onboarding />}
+      </Animated.View>
+      <StatusBar style={dark ? 'light' : 'dark'} />
+    </View>
+  );
+}
 
 export default function App() {
   return (
-    <View className="flex-1 items-center justify-center bg-white dark:bg-black">
-      <Text className="text-2xl font-semibold text-black dark:text-white">smooth-silver-bug</Text>
-      <Text className="mt-2 text-base text-neutral-500">Ask the agent to build something.</Text>
-      <StatusBar style="auto" />
-    </View>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <StoreProvider>
+          <Root />
+        </StoreProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
